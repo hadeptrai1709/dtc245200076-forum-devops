@@ -1,0 +1,9 @@
+# Bí mật: không bao giờ commit
+.env
+*.key
+*.pem
+nginx/certs/
+
+# File rác
+*.log
+.DS_Store
