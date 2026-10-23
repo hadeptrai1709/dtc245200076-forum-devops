@@ -1,0 +1,16 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; background: #f4f6f8; color: #222; }
+header { background: #1f3a5f; color: #fff; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; }
+header a { color: #fff; text-decoration: none; margin-left: 16px; }
+header .brand { font-weight: bold; font-size: 1.2em; margin-left: 0; }
+nav { display: flex; align-items: center; gap: 12px; }
+main { max-width: 860px; margin: 24px auto; padding: 0 16px; }
+footer { text-align: center; color: #777; padding: 24px; font-size: .85em; }
+.card { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.meta { color: #777; font-size: .85em; }
+.error { background: #fdecea; color: #b71c1c; padding: 10px; border-radius: 6px; margin-bottom: 12px; }
+.comment { border-left: 3px solid #cfd8dc; margin: 8px 0 0 12px; padding-left: 10px; }
+input[type=text], input[type=password], textarea { width: 100%; padding: 8px; margin: 6px 0 12px; border: 1px solid #ccc; border-radius: 6px; font: inherit; }
+button { background: #1f3a5f; color: #fff; border: 0; padding: 8px 16px; border-radius: 6px; cursor: pointer; font: inherit; }
+form.inline { display: inline; }
+header button { background: #3d5a80; }

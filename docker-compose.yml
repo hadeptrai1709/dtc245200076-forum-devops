@@ -1,0 +1,70 @@
+services:
+  nginx:
+    image: nginxinc/nginx-unprivileged:1.27-alpine
+    container_name: forum-nginx
+    restart: unless-stopped
+    depends_on: [app, phpmyadmin]
+    ports:
+      - "80:8080"
+      - "443:8443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    networks: [frontend]
+
+  mysql:
+    image: mysql:8.0
+    container_name: forum-mysql
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db:/docker-entrypoint-initdb.d:ro
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  app:
+    build: ./app
+    image: forum-app:1.0
+    container_name: forum-app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_HOST: mysql
+      DB_NAME: ${MYSQL_DATABASE}
+      DB_USER: ${MYSQL_APP_USER}
+      DB_PASS: ${MYSQL_APP_PASSWORD}
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    networks: [frontend, backend]
+
+  phpmyadmin:
+    image: phpmyadmin:5.2
+    container_name: forum-pma
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      PMA_HOST: mysql
+      PMA_ABSOLUTE_URI: https://pma.forum.local/
+    networks: [frontend, backend]
+
+networks:
+  frontend:
+  backend:
+    internal: true
+
+volumes:
+  mysql_data:
