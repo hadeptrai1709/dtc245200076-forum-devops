@@ -116,3 +116,8 @@ Truy vấn LogQL mẫu (Grafana → Explore → Loki):
 
 Hạn chế đã biết: Promtail đã hết vòng đời (EOL) từ 2/3/2026, Grafana khuyến nghị chuyển sang Alloy.
 Promtail cần mount `docker.sock` (quyền tương đương root trên máy chủ).
+
+## Bằng chứng hardening
+
+Chạy `./docs/collect-hardening-evidence.sh` để kiểm tra tự động và ghi kết quả vào `docs/hardening-evidence.txt`
+(non-root, cap_drop, network internal, quyền DB tối thiểu, security headers, TLS, rate limit, thử SQL Injection).
