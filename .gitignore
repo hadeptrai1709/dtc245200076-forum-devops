@@ -7,3 +7,4 @@ nginx/certs/
 # File rác
 *.log
 .DS_Store
+monitoring/mysqld-exporter.cnf

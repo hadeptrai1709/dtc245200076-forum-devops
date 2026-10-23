@@ -3,7 +3,7 @@ services:
     image: nginxinc/nginx-unprivileged:1.27-alpine
     container_name: forum-nginx
     restart: unless-stopped
-    depends_on: [app, phpmyadmin]
+    depends_on: [app, phpmyadmin, grafana]
     ports:
       - "80:8080"
       - "443:8443"
@@ -61,10 +61,96 @@ services:
       PMA_ABSOLUTE_URI: https://pma.forum.local/
     networks: [frontend, backend]
 
+  # ===== Giám sát =====
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: forum-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+    ports:
+      - "127.0.0.1:9090:9090"   # chỉ mở cho chính máy này
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    security_opt:
+      - no-new-privileges:true
+    networks: [monitoring]
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: forum-grafana
+    restart: unless-stopped
+    depends_on: [prometheus]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_DOMAIN: grafana.forum.local
+      GF_SERVER_ROOT_URL: https://grafana.forum.local/
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    security_opt:
+      - no-new-privileges:true
+    networks: [frontend, monitoring]
+
+  cadvisor:
+    image: ghcr.io/google/cadvisor:0.56.2
+    container_name: forum-cadvisor
+    restart: unless-stopped
+    command: ["--housekeeping_interval=30s", "--docker_only=true"]
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks: [monitoring]
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: forum-node-exporter
+    restart: unless-stopped
+    command: ['--path.rootfs=/host']
+    volumes:
+      - /:/host:ro,rslave
+    security_opt:
+      - no-new-privileges:true
+    networks: [monitoring]
+
+  mysqld-exporter:
+    image: prom/mysqld-exporter:v0.15.1
+    container_name: forum-mysqld-exporter
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: ['--config.my-cnf=/etc/mysqld-exporter/.my.cnf']
+    volumes:
+      - ./monitoring/mysqld-exporter.cnf:/etc/mysqld-exporter/.my.cnf:ro
+    security_opt:
+      - no-new-privileges:true
+    networks: [backend, monitoring]
+
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.3.0
+    container_name: forum-nginx-exporter
+    restart: unless-stopped
+    depends_on: [nginx]
+    command: ['--nginx.scrape-uri=http://nginx:8081/stub_status']
+    security_opt:
+      - no-new-privileges:true
+    networks: [frontend, monitoring]
+
 networks:
   frontend:
   backend:
     internal: true
+  monitoring:
 
 volumes:
   mysql_data:
+  prometheus_data:
+  grafana_data:

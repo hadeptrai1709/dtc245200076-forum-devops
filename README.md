@@ -3,7 +3,7 @@
 Đề tài thực hành môn Triển khai và Quản trị Hệ thống Phần mềm.
 Toàn bộ hệ thống triển khai bằng Docker Compose.
 
-- **Sinh viên:** <Họ tên> - MSSV: dtc245200076
+- **Sinh viên:** Nông Tiến Hà - MSSV: dtc245200076
 - **Chủ đề:** Diễn đàn / Cộng đồng (chủ đề, bài viết, bình luận, người dùng)
 
 ## Kiến trúc
@@ -14,6 +14,7 @@ Toàn bộ hệ thống triển khai bằng Docker Compose.
 | Ứng dụng diễn đàn | PHP 8.3 + Apache (non-root, cổng 8080) | frontend, backend |
 | Cơ sở dữ liệu | MySQL 8.0 | backend (internal) |
 | Công cụ quản lý DB | phpMyAdmin | frontend, backend |
+| Giám sát | Prometheus, Grafana, cAdvisor, node-exporter, mysqld-exporter, nginx-exporter | monitoring (+ cầu nối frontend/backend) |
 
 - `frontend`: mạng bridge thường, Nginx nói chuyện với app và phpMyAdmin.
 - `backend`: mạng `internal: true`, MySQL không ra được internet và không publish cổng nào.
@@ -30,13 +31,14 @@ cd dtc245200076-forum-devops
 
 # 1. Tạo file mật khẩu (sinh mật khẩu ngẫu nhiên)
 cp .env.example .env
-# Cách nhanh: tạo mật khẩu ngẫu nhiên cho 3 biến
-for v in MYSQL_ROOT_PASSWORD MYSQL_APP_PASSWORD MYSQL_EXPORTER_PASSWORD; do
+# Cách nhanh: tạo mật khẩu ngẫu nhiên cho 4 biến
+for v in MYSQL_ROOT_PASSWORD MYSQL_APP_PASSWORD MYSQL_EXPORTER_PASSWORD GRAFANA_ADMIN_PASSWORD; do
   sed -i "s/^$v=.*/$v=$(openssl rand -hex 16)/" .env
 done
 
 # 2. Tạo chứng chỉ HTTPS tự ký
 ./nginx/gen-cert.sh
+./monitoring/gen-exporter-cnf.sh   # sinh file cấu hình cho exporter MySQL
 
 # 3. Khai báo tên miền (trên máy chạy trình duyệt)
 echo "127.0.0.1 forum.local pma.forum.local grafana.forum.local" | sudo tee -a /etc/hosts
@@ -54,6 +56,8 @@ Nếu mở trình duyệt từ máy khác (ví dụ Windows), thay `127.0.0.1` b
 |---|---|---|
 | Diễn đàn | https://forum.local | chứng chỉ tự ký, trình duyệt sẽ cảnh báo, chọn tiếp tục |
 | phpMyAdmin | https://pma.forum.local | đăng nhập bằng `MYSQL_APP_USER` / `MYSQL_APP_PASSWORD` trong `.env`, chỉ cho phép từ mạng nội bộ |
+| Grafana | https://grafana.forum.local | user `admin`, mật khẩu `GRAFANA_ADMIN_PASSWORD` trong `.env`, chỉ cho phép từ mạng nội bộ |
+| Prometheus | http://127.0.0.1:9090 | chỉ mở cho chính máy chạy Docker |
 
 ## Hardening đã áp dụng
 
@@ -70,3 +74,25 @@ Nếu mở trình duyệt từ máy khác (ví dụ Windows), thay `127.0.0.1` b
 1. Forum + MySQL + phpMyAdmin + Nginx reverse proxy HTTPS (commit này)
 2. Prometheus + Grafana giám sát
 3. Loki + Promtail log tập trung
+
+## Giám sát (Prometheus + Grafana)
+
+| Đối tượng giám sát | Exporter | Job Prometheus |
+|---|---|---|
+| Máy chủ (host) | node-exporter | `node-exporter` |
+| Container | cAdvisor 0.56.2 | `cadvisor` |
+| Database | mysqld-exporter (user `exporter` quyền tối thiểu) | `mysql` |
+| Web server | nginx-exporter (đọc `stub_status`) | `nginx` |
+
+- Prometheus thu thập mỗi 15 giây và giữ dữ liệu 7 ngày.
+- Grafana tự có nguồn dữ liệu Prometheus (provisioning). Cần nhập thủ công các dashboard
+  (Dashboards → New → Import):
+
+| ID | Dashboard |
+|---|---|
+| 1860 | Node Exporter Full |
+| 14282 | cAdvisor / Docker |
+| 7362 | MySQL Overview |
+| 12708 | NGINX exporter |
+
+Lưu ý: cAdvisor từ bản 0.56.2 mới chạy ổn với Docker 29 (bản 0.56.1 bị lỗi nil pointer khi khởi động).
