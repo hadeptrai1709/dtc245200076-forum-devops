@@ -76,3 +76,7 @@ function header_html(string $title): void {
 function footer_html(): void {
     echo '</main><footer>Đề 15 - Forum | Docker Compose</footer></body></html>';
 }
+
+function app_log(string $msg): void {
+    file_put_contents('php://stderr', $msg . "\n");
+}

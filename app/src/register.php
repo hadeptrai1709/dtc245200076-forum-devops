@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         } catch (PDOException $ex) {
             $error = ($ex->getCode() === '23000') ? 'Tên đăng nhập đã tồn tại.' : 'Lỗi hệ thống.';
-            if ($error === 'Lỗi hệ thống.') { error_log('register_error: ' . $ex->getMessage()); }
+            if ($error === 'Lỗi hệ thống.') { app_log('register_error: ' . $ex->getMessage()); }
         }
     }
 }

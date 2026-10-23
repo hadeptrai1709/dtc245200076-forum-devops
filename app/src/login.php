@@ -12,12 +12,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         session_regenerate_id(true);
         $_SESSION['uid'] = (int)$row['id'];
         $_SESSION['uname'] = $row['username'];
-        error_log('login_success user=' . $row['username'] . ' ip=' . client_ip());
+        app_log('login_success user=' . $row['username'] . ' ip=' . client_ip());
         header('Location: /');
         exit;
     }
     $safe = substr(preg_replace('/[^\w.-]/', '_', $u), 0, 50);
-    error_log('login_failed user=' . $safe . ' ip=' . client_ip());
+    app_log('login_failed user=' . $safe . ' ip=' . client_ip());
     $error = 'Sai tên đăng nhập hoặc mật khẩu.';
 }
 header_html('Đăng nhập');

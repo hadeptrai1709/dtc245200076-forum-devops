@@ -15,6 +15,7 @@ Toàn bộ hệ thống triển khai bằng Docker Compose.
 | Cơ sở dữ liệu | MySQL 8.0 | backend (internal) |
 | Công cụ quản lý DB | phpMyAdmin | frontend, backend |
 | Giám sát | Prometheus, Grafana, cAdvisor, node-exporter, mysqld-exporter, nginx-exporter | monitoring (+ cầu nối frontend/backend) |
+| Log tập trung | Loki 3.6.0 + Promtail 3.6.0 | monitoring |
 
 - `frontend`: mạng bridge thường, Nginx nói chuyện với app và phpMyAdmin.
 - `backend`: mạng `internal: true`, MySQL không ra được internet và không publish cổng nào.
@@ -96,3 +97,22 @@ Nếu mở trình duyệt từ máy khác (ví dụ Windows), thay `127.0.0.1` b
 | 12708 | NGINX exporter |
 
 Lưu ý: cAdvisor từ bản 0.56.2 mới chạy ổn với Docker 29 (bản 0.56.1 bị lỗi nil pointer khi khởi động).
+
+## Log tập trung (Loki + Promtail)
+
+- **Promtail** đọc log của mọi container thuộc dự án qua Docker socket và gắn nhãn `container`, `service`, `job`.
+- **Loki** lưu log (chỉ đánh chỉ mục theo nhãn). Grafana có sẵn nguồn dữ liệu Loki (provisioning).
+- Service `loki-init` chạy một lần để chỉnh quyền volume cho Loki (uid 10001); nếu thiếu bước này Loki sẽ lỗi `permission denied`.
+- Ứng dụng ghi sự kiện `login_success` / `login_failed` ra `stderr`, Nginx ghi access log ra `stdout`.
+
+Truy vấn LogQL mẫu (Grafana → Explore → Loki):
+
+| Mục đích | LogQL |
+|---|---|
+| Đăng nhập sai | `{service="app"} \|= "login_failed"` |
+| Request 404 | `{service="nginx"} \|= " 404 "` |
+| Lượng log mỗi dịch vụ | `sum by (service) (count_over_time({job="docker"}[5m]))` |
+| Bị giới hạn tần suất | `{service="nginx"} \|= " 429 "` |
+
+Hạn chế đã biết: Promtail đã hết vòng đời (EOL) từ 2/3/2026, Grafana khuyến nghị chuyển sang Alloy.
+Promtail cần mount `docker.sock` (quyền tương đương root trên máy chủ).
